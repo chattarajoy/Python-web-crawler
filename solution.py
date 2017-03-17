@@ -30,7 +30,8 @@ def normalize_url(seed_url, seed_domain_name):
     # for links of the form :  /about.html
     if not domain_name:
         domain_name = seed_domain_name
-    return "http://" + domain_name + urlparse(seed_url).path
+    normalized_url = "http://" + domain_name + urlparse(seed_url).path
+    return normalized_url.strip('/')
 
 # check if url is accessible
 def validate_url_accessibility(seed_url):
@@ -93,6 +94,7 @@ if __name__ == "__main__":
         visited_pages = [normalized_seed_url]
         # Dictionary of depth and a list of pages accessible on that depth
         depth_dict = defaultdict(list)
+        depth_dict["0"] = [normalized_seed_url]
         # start crawling from the seed page, current depth is set to 1
         crawl(normalized_seed_url, domain_name, 1, max_depth, visited_pages, depth_dict)
         for depth in sorted(depth_dict):
