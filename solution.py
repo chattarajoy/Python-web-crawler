@@ -24,7 +24,7 @@ def get_domain_name(seed_url):
             domain_name = ".".join(domain_name.split('.')[1:])
     return domain_name
 
-#convert url to a standard format
+#convert every url to a standard format
 def normalize_url(seed_url, seed_domain_name):
     domain_name = get_domain_name(seed_url)
     # for links of the form :  /about.html
@@ -44,9 +44,8 @@ def validate_url_accessibility(seed_url):
     except:
         return 0      # for timeouts exception
 
-# crawk a page and find links for next level crawl
-def crawl(seed_url, domain_name, current_depth, max_depth, visited_pages, depth_dict):
-    if current_depth <= max_depth and validate_url_accessibility(seed_url):
+def get_links(seed_url):
+    if validate_url_accessibility(seed_url):
         # Get the contents of the page
         html_page = requests.get(seed_url).text
         # Parse using beautiful soup
@@ -59,28 +58,52 @@ def crawl(seed_url, domain_name, current_depth, max_depth, visited_pages, depth_
             # contents in the href values has the link
             url = link.get('href')
             # convert url to a standard format
-            if url: # if the href tag has some text,
-                normalized_url = normalize_url(url, domain_name)
-                # add unvisited pages of same website for next crawl
-                if (get_domain_name(normalized_url) == domain_name) and (normalized_url not in visited_pages):
-                    found_pages.append(normalized_url)
-                    # mark them visited
-                    visited_pages.append(normalized_url)
-                    # add to resultant dictionary
-                    depth_dict[str(current_depth)].append(normalized_url)
-        # repeat crawl for newly found pages
-        for page in found_pages:
-            crawl(page, domain_name, current_depth + 1, max_depth, visited_pages, depth_dict)
+            if url:
+                normalized_url = normalize_url(url, get_domain_name(seed_url))
+                # add the page for next crawl
+                found_pages.append(normalized_url)
 
+        return found_pages
+
+# find all accessible pages till given depth
+def crawl(seed_url, max_depth, depth_dict):
+    # current depth
+    current_depth = 0
+    # get domain name from seed_url
+    domain_name = get_domain_name(seed_url)
+    # list of all visited pages
+    visited_pages = []
+    # list of pages to visit
+    pages_to_visit = []
+    # add the seed page and current depth as a tuple
+    pages_to_visit.append((seed_url, current_depth))
+
+    while(len(pages_to_visit) > 0):
+        # get the first entry on the list
+        page_to_visit, current_depth = pages_to_visit[0]
+        # proceed only if the page is unvisied
+        if page_to_visit not in visited_pages:
+            if current_depth + 1 <= max_depth:
+                # get the list of all links on the page
+                found_pages = get_links(page_to_visit)
+                # proceed if any links are found
+                if found_pages:
+                    for page in found_pages:
+                        # add all unvisied pages of same domain to check in next crawl
+                        if get_domain_name(page) == domain_name:
+                            pages_to_visit.append((page, current_depth + 1))
+            # add the current page to list of visied pages and fix its minimum depth
+            visited_pages.append(page_to_visit)
+            depth_dict[str(current_depth)].append(page_to_visit)
+        # remove the current element from the list
+        pages_to_visit.pop(0)
 
 if __name__ == "__main__":
 
     # seed_url -> www.example.com/about
     seed_url = get_seed_url()
-    # domain name -> example.com
-    domain_name = get_domain_name(seed_url)
     # normalised seed url -> http://example.com/about
-    normalized_seed_url = normalize_url(seed_url, domain_name)
+    normalized_seed_url = normalize_url(seed_url, get_domain_name(seed_url))
 
     print "\nPlease Wait Checking accessiblility of seed page...."
     # check if seed page is accessible
@@ -90,13 +113,10 @@ if __name__ == "__main__":
         # Max depth for the crawl
         max_depth = int(raw_input("Enter Max Depth : "))
         print "\nWorking.. This may take some time based on your internet connection.\nPlease be Patient!"
-        # List of all pages visited till now
-        visited_pages = [normalized_seed_url]
         # Dictionary of depth and a list of pages accessible on that depth
         depth_dict = defaultdict(list)
-        depth_dict["0"] = [normalized_seed_url]
         # start crawling from the seed page, current depth is set to 1
-        crawl(normalized_seed_url, domain_name, 1, max_depth, visited_pages, depth_dict)
+        crawl(normalized_seed_url, max_depth, depth_dict)
         for depth in sorted(depth_dict):
             print "\nDepth : ", depth
             print "List of accessible pages : \n"
