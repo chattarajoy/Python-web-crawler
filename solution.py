@@ -45,8 +45,7 @@ def validate_url_accessibility(seed_url):
         return 0      # for timeouts exception
 
 def get_links(seed_url):
-    if validate_url_accessibility(seed_url):
-        # Get the contents of the page
+    try: # To avoid crash on connection errors
         html_page = requests.get(seed_url).text
         # Parse using beautiful soup
         soup = BeautifulSoup(html_page, "html.parser")
@@ -64,6 +63,8 @@ def get_links(seed_url):
                 found_pages.append(normalized_url)
 
         return found_pages
+    except:
+        return None
 
 # find all accessible pages till given depth
 def crawl(seed_url, max_depth, depth_dict):
